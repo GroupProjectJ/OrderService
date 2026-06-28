@@ -41,7 +41,7 @@ src/
 
 ## API Endpoints
 
-Base URL: `http://localhost:8080/api/orders`
+Base URL: `http://localhost:8081/api/orders`
 
 | Method | Endpoint | Description | Status |
 |---|---|---|---|
@@ -88,14 +88,21 @@ Base URL: `http://localhost:8080/api/orders`
 
 Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
 
+First, create your `.env` file from the template and set the database password:
+
+```bash
+cp .env.example .env
+# edit .env and set POSTGRES_PASSWORD
+```
+
 ```bash
 docker compose up --build
 ```
 
-Starts both PostgreSQL and the application automatically. No manual database setup needed.
+Starts both PostgreSQL and the application automatically. Credentials are read from `.env` (never committed). No manual database setup needed.
 
-- App: `http://localhost:8080`
-- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- App: `http://localhost:8081`
+- Swagger UI: `http://localhost:8081/swagger-ui/index.html`
 
 To stop:
 ```bash
@@ -153,10 +160,10 @@ docker push <your-dockerhub-username>/order-service:latest
 ```bash
 docker pull <your-dockerhub-username>/order-service:latest
 
-docker run -p 8080:8080 \
+docker run -p 8081:8081 \
   -e DB_URL=jdbc:postgresql://host.docker.internal:5432/Ecommerce \
   -e DB_USERNAME=postgres \
-  -e DB_PASSWORD=2001 \
+  -e DB_PASSWORD=<your-db-password> \
   <your-dockerhub-username>/order-service:latest
 ```
 
@@ -168,7 +175,7 @@ docker run -p 8080:8080 \
 |---|---|---|
 | `DB_URL` | `jdbc:postgresql://localhost:5432/Ecommerce` | JDBC connection URL |
 | `DB_USERNAME` | `postgres` | Database username |
-| `DB_PASSWORD` | `2001` | Database password |
+| `DB_PASSWORD` | _(none)_ | Database password (set via `.env`) |
 
 ---
 
@@ -176,10 +183,10 @@ docker run -p 8080:8080 \
 
 Interactive API documentation:
 ```
-http://localhost:8080/swagger-ui/index.html
+http://localhost:8081/swagger-ui/index.html
 ```
 
 API schema (JSON):
 ```
-http://localhost:8080/api-docs
+http://localhost:8081/api-docs
 ```

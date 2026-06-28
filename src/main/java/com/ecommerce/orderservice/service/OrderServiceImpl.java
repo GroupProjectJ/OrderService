@@ -1,10 +1,14 @@
 package com.ecommerce.orderservice.service;
 
 import com.ecommerce.orderservice.dto.CreateOrderRequest;
+import com.ecommerce.orderservice.dto.OrderEvent;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.dto.ProductResponse;
 import com.ecommerce.orderservice.model.Order;
 import com.ecommerce.orderservice.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -13,12 +17,18 @@ import java.time.LocalDateTime;
 @Service
 public class OrderServiceImpl implements OrderService {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderServiceImpl.class);
+
     private final OrderRepository orderRepository;
     private final ProductServiceClient productServiceClient;
+    private final OrderEventPublisher orderEventPublisher;
 
-    public OrderServiceImpl(OrderRepository orderRepository, ProductServiceClient productServiceClient) {
+    public OrderServiceImpl(OrderRepository orderRepository,
+                            ProductServiceClient productServiceClient,
+                            OrderEventPublisher orderEventPublisher) {
         this.orderRepository = orderRepository;
         this.productServiceClient = productServiceClient;
+        this.orderEventPublisher = orderEventPublisher;
     }
 
     @Override
@@ -38,7 +48,27 @@ public class OrderServiceImpl implements OrderService {
         );
 
         Order saved = orderRepository.save(order);
+
+        try {
+            orderEventPublisher.publishOrderCreatedEvent(buildEvent(saved));
+        } catch (AmqpException ex) {
+            log.error("Failed to publish order event for orderId={}: {}", saved.getOrderId(), ex.getMessage(), ex);
+        }
+
         return mapToResponse(saved);
+    }
+
+    private OrderEvent buildEvent(Order order) {
+        return new OrderEvent(
+                order.getOrderId(),
+                order.getCustomerId(),
+                order.getProductId(),
+                order.getProductName(),
+                order.getQuantity(),
+                order.getTotalPrice(),
+                order.getOrderDate(),
+                order.getStatus()
+        );
     }
 
     private OrderResponse mapToResponse(Order order) {

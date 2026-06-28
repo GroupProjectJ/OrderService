@@ -1,6 +1,7 @@
 package com.ecommerce.orderservice.service;
 
 import com.ecommerce.orderservice.dto.CreateOrderRequest;
+import com.ecommerce.orderservice.dto.OrderEvent;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.dto.ProductResponse;
 import com.ecommerce.orderservice.exception.ProductServiceException;
@@ -14,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.AmqpException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -31,6 +33,9 @@ class OrderServiceImplTest {
 
     @Mock
     private ProductServiceClient productServiceClient;
+
+    @Mock
+    private OrderEventPublisher orderEventPublisher;
 
     @InjectMocks
     private OrderServiceImpl orderServiceImpl;
@@ -69,6 +74,7 @@ class OrderServiceImplTest {
         assertThat(response.getQuantity()).isEqualTo(3);
         assertThat(response.getTotalPrice()).isEqualByComparingTo(new BigDecimal("150.00"));
         assertThat(response.getStatus()).isEqualTo("CREATED");
+        verify(orderEventPublisher).publishOrderCreatedEvent(any(OrderEvent.class));
     }
 
     @Test
@@ -129,6 +135,7 @@ class OrderServiceImplTest {
                 .hasMessageContaining("Product not found with id: 1");
 
         verify(orderRepository, never()).save(any());
+        verify(orderEventPublisher, never()).publishOrderCreatedEvent(any());
     }
 
     @Test
@@ -141,6 +148,7 @@ class OrderServiceImplTest {
                 .hasMessageContaining("Failed to reach Product Service");
 
         verify(orderRepository, never()).save(any());
+        verify(orderEventPublisher, never()).publishOrderCreatedEvent(any());
     }
 
     @Test
@@ -156,5 +164,23 @@ class OrderServiceImplTest {
         orderServiceImpl.createOrder(request);
 
         assertThat(captor.getValue().getProductName()).isEqualTo("Test Product");
+    }
+
+    @Test
+    void createOrder_stillReturnsResponse_whenPublishFails() {
+        Order savedOrder = new Order(10L, 1L, "Test Product", 3, new BigDecimal("150.00"),
+                LocalDateTime.now(), "CREATED");
+        savedOrder.setOrderId(100L);
+
+        when(productServiceClient.getProductById(1L)).thenReturn(productResponse);
+        when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
+        doThrow(new AmqpException("Broker down"))
+                .when(orderEventPublisher).publishOrderCreatedEvent(any(OrderEvent.class));
+
+        OrderResponse response = orderServiceImpl.createOrder(request);
+
+        assertThat(response.getOrderId()).isEqualTo(100L);
+        assertThat(response.getStatus()).isEqualTo("CREATED");
+        verify(orderRepository).save(any(Order.class));
     }
 }

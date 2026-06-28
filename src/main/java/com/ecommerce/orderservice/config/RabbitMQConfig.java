@@ -22,17 +22,20 @@ public class RabbitMQConfig {
     private String routingKey;
 
     @Bean
-    public TopicExchange orderExchange() {
-        return new TopicExchange(exchangeName);
+    public DirectExchange orderExchange() {
+        return new DirectExchange(exchangeName);
     }
 
     @Bean
     public Queue orderCreatedQueue() {
-        return QueueBuilder.durable(queueName).build();
+        return QueueBuilder.durable(queueName)
+                .deadLetterExchange("notification.dlx")
+                .deadLetterRoutingKey("notification.dead")
+                .build();
     }
 
     @Bean
-    public Binding orderCreatedBinding(Queue orderCreatedQueue, TopicExchange orderExchange) {
+    public Binding orderCreatedBinding(Queue orderCreatedQueue, DirectExchange orderExchange) {
         return BindingBuilder.bind(orderCreatedQueue).to(orderExchange).with(routingKey);
     }
 

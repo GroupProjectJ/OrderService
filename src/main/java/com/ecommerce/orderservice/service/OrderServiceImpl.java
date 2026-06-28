@@ -4,6 +4,7 @@ import com.ecommerce.orderservice.dto.CreateOrderRequest;
 import com.ecommerce.orderservice.dto.OrderEvent;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.dto.ProductResponse;
+import com.ecommerce.orderservice.exception.ResourceNotFoundException;
 import com.ecommerce.orderservice.model.Order;
 import com.ecommerce.orderservice.repository.OrderRepository;
 import org.slf4j.Logger;
@@ -35,6 +36,10 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderResponse createOrder(CreateOrderRequest request) {
         ProductResponse product = productServiceClient.getProductById(request.getProductId());
+
+        if(product.getStock() < request.getQuantity()) {
+            throw new ResourceNotFoundException("Product is not with required amount in stock");
+        }
 
         BigDecimal totalPrice = product.getUnitPrice().multiply(BigDecimal.valueOf(request.getQuantity()));
 

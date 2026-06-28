@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -43,7 +44,7 @@ public class OrderServiceImpl implements OrderService {
                 product.getName(),
                 request.getQuantity(),
                 totalPrice,
-                LocalDateTime.now(),
+                LocalDateTime.now(ZoneId.systemDefault()),
                 "CREATED"
         );
 
